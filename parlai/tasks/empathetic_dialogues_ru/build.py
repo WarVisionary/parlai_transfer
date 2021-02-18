@@ -2,12 +2,35 @@ import os
 from tqdm import tqdm
 
 import torch
+from torch.utils.data import Dataset, DataLoader
 
 from transformers import FSMTForConditionalGeneration, FSMTTokenizer
 
 import parlai.core.build_data as build_data
 from parlai.utils.io import PathManager
 from parlai.tasks.empathetic_dialogues.build import build as build_en_data
+
+
+class _SimpleDataset(Dataset):
+    """Simple list dataset."""
+
+    def __init__(self, input_utterances):
+        """
+        Args:
+            input_utterances (List[string]): List of string utterances.
+        """
+        self.utterances = input_utterances
+
+    def __len__(self):
+        return len(self.utterances)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        sample = self.utterances[idx]
+
+        return sample
 
 
 def build(opt):
@@ -47,11 +70,18 @@ def build(opt):
                 df = f.readlines()
 
             def _translate_utterances(utterances):
-                inputs = tokenizer(utterances, return_tensors='pt', padding=True)
-                outputs = model.generate(inputs['input_ids'].to(device)).to(torch.device('cpu'))
+                dataset = _SimpleDataset(utterances)
+                dataloader = DataLoader(dataset, batch_size=opt.get('batch_size'), shuffle=False)
+
+                outputs = []
+                for batch in dataloader:
+                    tokens = tokenizer(batch, return_tensors='pt', padding=True)['input_ids']
+                    outputs.append(model.generate(tokens.to(device)).to(torch.device('cpu')))
+                
                 translated = [
-                    tokenizer.decode(outputs[i], skip_special_tokens=True)
-                    for i in range(outputs.shape[0])
+                    tokenizer.decode(output[i], skip_special_tokens=True)
+                    for output in outputs
+                    for i in range(output.shape[0])
                 ]
                 return translated
 
@@ -90,13 +120,14 @@ def build(opt):
 
                         if len(sparts) == 9:
                             if sparts[8] != '':
+                                in_line_idx = 8
                                 for cand_idx, cand in enumerate(sparts[8].split('|')):
                                     jobs.setdefault(cand.replace("_pipe_", "|"), []).append({
                                         'line_idx': line_idx,
                                         'in_line_idx': in_line_idx,
                                         'cand_idx': cand_idx
                                     })
-                                    lines_with_cands.setdefault(f"{i}:{in_line_idx}", []).append(None)
+                                    lines_with_cands.setdefault(f"{line_idx}:{in_line_idx}", []).append(None)
 
                         elif len(sparts) == 8:
                             pass
@@ -145,7 +176,6 @@ def build(opt):
                                 pos_idx = int(pos_idx)
                                 # Assert we found every single output that was supposed to be here
                                 assert all([val is not None for val in value])
-                                print(f"DEBUG: {'|'.join(value)}")
                                 lines[line_idx][pos_idx] = '|'.join(value)
 
                             for line in lines:
@@ -161,4 +191,4 @@ def build(opt):
                 _translate_episode()
 
         # Mark the data as built.
-        build_data.mark_done(dpath, version_string=version)
+        # build_data.mark_done(dpath, version_string=version)

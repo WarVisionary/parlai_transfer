@@ -1,7 +1,8 @@
 import os
+from typing import Any, List, Optional
 
-from typing import Any, List
-
+from parlai.core.params import ParlaiParser
+from parlai.core.opt import Opt
 from parlai.core.teachers import FixedDialogTeacher
 from parlai.tasks.empathetic_dialogues.agents import EmpatheticDialoguesTeacher
 
@@ -10,6 +11,7 @@ from .build import build
 
 DEFAULT_TRAIN_EXPERIENCER_ONLY = False
 DEFAULT_REMOVE_POLITICAL_CONVOS = False
+DEFAULT_BATCH_SIZE = 16
 
 
 class EmpatheticDialoguesRUTeacher(FixedDialogTeacher):
@@ -41,7 +43,9 @@ class EmpatheticDialoguesRUTeacher(FixedDialogTeacher):
         self.remove_political_convos = opt.get(
             'remove_political_convos', DEFAULT_REMOVE_POLITICAL_CONVOS
         )
-        
+        self.batch_size = opt.get(
+            'batch_size', DEFAULT_BATCH_SIZE
+        )
         
         if shared:
             self.data = shared['data']
@@ -53,6 +57,34 @@ class EmpatheticDialoguesRUTeacher(FixedDialogTeacher):
         self.num_exs = sum([len(d) for d in self.data])
         self.num_eps = len(self.data)
         self.reset()
+
+    @classmethod
+    def add_cmdline_args(
+        cls, parser: ParlaiParser, partial_opt: Optional[Opt] = None
+    ) -> ParlaiParser:
+        agent = parser.add_argument_group('EmpatheticDialogues teacher arguments')
+        agent.add_argument(
+            '--train-experiencer-only',
+            type='bool',
+            default=DEFAULT_TRAIN_EXPERIENCER_ONLY,
+            # i.e. do not include the other side of the conversation where the Listener
+            # (responder) utterance would be the text and the Speaker (experiencer)
+            # utterance would be the label
+            help='In the train set, only use Speaker (experiencer) utterances as text and Listener (responder) utterances as labels.',
+        )
+        agent.add_argument(
+            '--remove-political-convos',
+            type='bool',
+            default=DEFAULT_REMOVE_POLITICAL_CONVOS,
+            help='Remove all conversations containing an utterance marked as political',
+        )
+        agent.add_argument(
+            '--batch_size',
+            type=int,
+            default=DEFAULT_BATCH_SIZE,
+            help='Batch size to use during data build',
+        )
+        return parser
 
     def num_episodes(self):
         return self.num_eps
