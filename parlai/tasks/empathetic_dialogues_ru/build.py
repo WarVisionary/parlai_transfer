@@ -12,7 +12,7 @@ from parlai.tasks.empathetic_dialogues.build import build as build_en_data
 
 
 class _SimpleDataset(Dataset):
-    """Simple list dataset."""
+    """Simple list datasetnj."""
 
     def __init__(self, input_utterances):
         """
@@ -37,7 +37,6 @@ def build(opt):
     version = '1.0'
     dpath = os.path.join(
         opt['datapath'],
-        'empatheticdialoguesru',
         'empatheticdialoguesru'
     )
     
@@ -46,7 +45,7 @@ def build(opt):
         if build_data.built(dpath):
             # An older version exists, so remove these outdated files.
             build_data.remove_dir(dpath)
-        build_data.make_dir(dpath)
+        build_data.make_dir(os.path.join(dpath, 'empatheticdialoguesru'))
 
         build_en_data(opt)
 
@@ -104,13 +103,13 @@ def build(opt):
                 jobs = {}
                 lines = []
                 lines_with_cands = {}
-                for i in tqdm(range(len(df)), "Translating dataset"):
+                for i in tqdm(range(1, len(df)), f"Translating dataset: {base_datatype}"):
                     cparts = df[i - 1].strip().split(",")
                     sparts = df[i].strip().split(",")
-                    lines.append(sparts)
-
+                    
                     # Collect turn's utterances
                     def _collect():
+                        lines.append(sparts)
                         line_idx = len(lines) - 1
                         for in_line_idx in [3, 5]:
                             jobs.setdefault(sparts[in_line_idx], []).append({
@@ -143,10 +142,6 @@ def build(opt):
 
                         _collect()
                     else:
-                        # First utterance of the first episode requires special processing
-                        if i == 1:
-                            _collect()
-                            continue
                         # We've finished the previous episode, so translate it
                         def _translate_episode():
                             # Add indirection level to reduce memory use
@@ -187,8 +182,10 @@ def build(opt):
                         jobs = {}
                         lines = []
                         lines_with_cands = {}
+                        # First utterance of any episode requires special processing
+                        _collect()
                 # Translate the final episode
                 _translate_episode()
 
         # Mark the data as built.
-        # build_data.mark_done(dpath, version_string=version)
+        build_data.mark_done(dpath, version_string=version)
