@@ -1,4 +1,4 @@
-This is a Empathetic Dialogues RU task for parlai, using original dataset for Empathetic Dialogues, translated into Russian using facebook's en-ru translator model provided in huggingface/transformers package.
+This is a Empathetic Dialogues RU task for parlai, using original dataset for Empathetic Dialogues, translated into Russian using [Helsinki-NLP/opus-mt-en-ru](https://huggingface.co/Helsinki-NLP/opus-mt-en-ru) translator model provided in huggingface/transformers package.
 
 # Building data
 

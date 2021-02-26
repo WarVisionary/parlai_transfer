@@ -4,7 +4,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-from transformers import FSMTForConditionalGeneration, FSMTTokenizer
+from transformers import AutoTokenizer, MarianMTModel
 
 import parlai.core.build_data as build_data
 from parlai.utils.io import PathManager
@@ -12,7 +12,7 @@ from parlai.tasks.empathetic_dialogues.build import build as build_en_data
 
 
 class _SimpleDataset(Dataset):
-    """Simple list datasetnj."""
+    """Simple list dataset."""
 
     def __init__(self, input_utterances):
         """
@@ -34,7 +34,7 @@ class _SimpleDataset(Dataset):
 
 
 def build(opt):
-    version = '1.0'
+    version = '1.1'
     dpath = os.path.join(
         opt['datapath'],
         'empatheticdialoguesru'
@@ -49,13 +49,13 @@ def build(opt):
 
         build_en_data(opt)
 
-        mname = "facebook/wmt19-en-ru"
+        mname = "Helsinki-NLP/opus-mt-en-ru"
         if torch.cuda.is_available():
             device = torch.device('cuda:0')
         else:
             device = torch.device('cpu')
-        tokenizer = FSMTTokenizer.from_pretrained(mname)
-        model = FSMTForConditionalGeneration.from_pretrained(mname)
+        tokenizer = AutoTokenizer.from_pretrained(mname)
+        model = MarianMTModel.from_pretrained(mname)
         model.to(device)
 
         for base_datatype in ['train', 'valid', 'test']:
